@@ -1,4 +1,5 @@
 import os
+import json
 from worker.celery_app import celery
 from worker.config import get_settings
 from worker.generators import get_generator
@@ -17,29 +18,43 @@ def generate(
     **kwargs,
 ):
     """
-    Celery task: generate audio from text.
-    Only handles request_type='audio'; ignores other types
-    so this worker can coexist on the same queue without errors.
+    Celery task compatible with GeminiBApiServer.
+    Handles request_type='audio'.
+
+    Extra generator params can be passed two ways:
+
+    1. Via kwargs directly (when caller uses celery.send_task with extra kwargs):
+           {"speaker": "aidar", "sample_rate": 24000}
+
+    2. As JSON prefix in prompt (for callers that can only send prompt string):
+           prompt = '{"speaker":"aidar","sample_rate":24000}\\nТекст для озвучки'
+       The JSON object on the first line is stripped and used as params.
     """
     if request_type != "audio":
         raise ValueError(
             f"VoiceGen only handles request_type='audio', got '{request_type}'"
         )
 
-    generator_name = model_name or settings.default_generator
+    # --- Extract params from JSON prefix in prompt (optional) ---
+    text = prompt
+    inline_params: dict = {}
+    first_line, _, rest = prompt.partition("\n")
+    if first_line.strip().startswith("{"):
+        try:
+            inline_params = json.loads(first_line.strip())
+            text = rest.strip()
+        except json.JSONDecodeError:
+            pass  # treat the whole prompt as plain text
 
-    # Parse optional extra settings passed via kwargs
-    tts_settings = {
-        "speaker": kwargs.get("speaker", settings.default_speaker),
-        "sample_rate": kwargs.get("sample_rate", settings.default_sample_rate),
-        "language": kwargs.get("language", "ru"),
-        "speaker_model": kwargs.get("speaker_model", "v5_ru"),
-    }
+    # kwargs take priority over inline JSON
+    raw_params = {**inline_params, **kwargs}
+
+    generator_name = model_name or settings.default_generator
 
     os.makedirs(settings.temp_dir, exist_ok=True)
 
     generator = get_generator(generator_name)
-    file_path = generator.generate(text=prompt, settings=tts_settings)
+    file_path = generator.generate(text=text, params=raw_params)
 
     if callback_url:
         _send_callback(callback_url, file_path)

@@ -1,4 +1,4 @@
-from worker.generators.base import BaseTTSGenerator
+from worker.generators.base import BaseTTSGenerator, ParamSpec
 from worker.generators.silero import SileroGenerator
 
 # Registry: model_name -> generator class
@@ -19,3 +19,11 @@ def get_generator(name: str) -> BaseTTSGenerator:
 def register_generator(name: str, cls: type[BaseTTSGenerator]) -> None:
     """Register a custom generator at runtime."""
     _REGISTRY[name.lower()] = cls
+
+
+def list_generators() -> dict:
+    """Return all registered generators with their param schemas."""
+    return {
+        name: cls.params_schema()
+        for name, cls in _REGISTRY.items()
+    }

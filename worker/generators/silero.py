@@ -3,54 +3,56 @@ import uuid
 import torch
 
 from worker.config import get_settings
-from worker.generators.base import BaseTTSGenerator
+from worker.generators.base import BaseTTSGenerator, ParamSpec
 
-settings = get_settings()
+_settings = get_settings()
 
 
 class SileroGenerator(BaseTTSGenerator):
     """
-    TTS generator using Silero models (snakers4/silero-models).
-    Supports Russian and other languages available in Silero.
+    TTS via Silero (snakers4/silero-models).
+
+    Params:
+        speaker       - voice name (eugene, aidar, baya, kseniya, xenia, random)
+        sample_rate   - 8000 | 24000 | 48000
+        language      - ru | en | de | es | fr | ...
+        speaker_model - model variant (v5_ru, v3_en, ...)
     """
 
-    # Cache loaded models to avoid re-downloading on every task
+    PARAMS = {
+        "speaker":       ParamSpec("eugene",  str, "Silero speaker name (eugene, aidar, baya, kseniya, xenia, random)"),
+        "sample_rate":   ParamSpec(48000,     int, "Output sample rate: 8000, 24000 or 48000"),
+        "language":      ParamSpec("ru",      str, "Language code (ru, en, de, ...)"),
+        "speaker_model": ParamSpec("v5_ru",   str, "Silero model variant (v5_ru, v3_en, ...)"),
+    }
+
+    # Class-level cache: avoids re-downloading on every task
     _model_cache: dict[str, object] = {}
 
     def _load_model(self, language: str, speaker_model: str):
         cache_key = f"{language}_{speaker_model}"
-        if cache_key not in self._model_cache:
+        if cache_key not in SileroGenerator._model_cache:
             model, _ = torch.hub.load(
                 "snakers4/silero-models",
                 "silero_tts",
                 language=language,
                 speaker=speaker_model,
             )
-            self._model_cache[cache_key] = model
-        return self._model_cache[cache_key]
+            SileroGenerator._model_cache[cache_key] = model
+        return SileroGenerator._model_cache[cache_key]
 
-    def generate(self, text: str, settings_: dict | None = None) -> str:
-        # Accept both 'settings' kwarg pattern and positional
-        if settings_ is None:
-            settings_ = {}
-        return self._generate(text, settings_)
+    def generate(self, text: str, params: dict) -> str:
+        p = self.resolve_params(params)
 
-    # BaseTTSGenerator requires this signature
-    def generate(self, text: str, settings: dict) -> str:
-        language = settings.get("language", "ru")
-        speaker_model = settings.get("speaker_model", "v5_ru")
-        speaker = settings.get("speaker", "eugene")
-        sample_rate = int(settings.get("sample_rate", 48000))
+        model = self._load_model(p["language"], p["speaker_model"])
 
-        model = self._load_model(language, speaker_model)
-
-        filename = f"silero_{speaker}_{uuid.uuid4().hex[:8]}.mp3"
-        file_path = os.path.join(settings.temp_dir, filename)
+        filename = f"silero_{p['speaker']}_{uuid.uuid4().hex[:8]}.mp3"
+        file_path = os.path.join(_settings.temp_dir, filename)
 
         model.save_wav(
             text=text,
-            speaker=speaker,
-            sample_rate=sample_rate,
+            speaker=p["speaker"],
+            sample_rate=p["sample_rate"],
             audio_path=file_path,
         )
 
