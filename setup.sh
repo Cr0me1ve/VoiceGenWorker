@@ -6,7 +6,7 @@ ENV_FILE="$REPO_DIR/.env"
 
 echo "=== VoiceGenWorker setup ==="
 
-# ── .env ──────────────────────────────────────────────────────────
+# ── .env ────────────────────────────────────────────────────────
 ENV_SKIP=0
 if [ -f "$ENV_FILE" ]; then
     read -rp ".env уже существует. Перезаписать? [y/N] " answer
@@ -17,8 +17,8 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 if [ "$ENV_SKIP" -eq 0 ]; then
-    read -rp "REDIS_HOST (default: redis): " REDIS_HOST
-    REDIS_HOST="${REDIS_HOST:-redis}"
+    read -rp "REDIS_HOST (default: minet.space): " REDIS_HOST
+    REDIS_HOST="${REDIS_HOST:-minet.space}"
 
     read -rp "REDIS_PORT (default: 6379): " REDIS_PORT
     REDIS_PORT="${REDIS_PORT:-6379}"
@@ -39,12 +39,11 @@ if [ "$ENV_SKIP" -eq 0 ]; then
     TEMP_DIR="${TEMP_DIR:-temp}"
 
     cat > "$ENV_FILE" <<EOF
-# Redis / Celery — должно совпадать с GenManager
+# Redis / Celery — подключение к GenManager на minet.space
 REDIS_HOST=${REDIS_HOST}
 REDIS_PORT=${REDIS_PORT}
 REDIS_PASSWORD=${REDIS_PASSWORD}
 
-# Строки подключения (если нужно переопределить)
 CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/0
 CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/1
 
@@ -70,5 +69,5 @@ docker compose up -d --build
 
 echo ""
 echo "=== Готово ==="
-echo "Воркер слушает очередь 'voice' в сети genmanager_net."
+echo "Воркер слушает очередь 'voice', Redis: ${REDIS_HOST:-minet.space}:${REDIS_PORT:-6379}"
 echo "Логи: docker compose logs -f"

@@ -7,9 +7,3 @@ services:
     volumes:
       - ./temp:/app/temp
     restart: unless-stopped
-    networks:
-      - genmanager_net
-
-networks:
-  genmanager_net:
-    external: true
