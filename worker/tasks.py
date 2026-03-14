@@ -1,13 +1,16 @@
 import os
 import json
+import logging
+import time
 from worker.celery_app import celery
 from worker.config import get_settings
 from worker.generators import get_generator
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-@celery.task(name="worker.tasks.generate", bind=True)
+@celery.task(name="voice_worker.tasks.generate", bind=True)
 def generate(
     self,
     prompt: str,
@@ -18,24 +21,25 @@ def generate(
     **kwargs,
 ):
     """
-    Celery task compatible with GeminiBApiServer.
-    Handles request_type='audio'.
+    Celery task для GenManager (multi_queue).
+    Слушает очередь 'voice', обрабатывает request_type='voice'.
 
-    Extra generator params can be passed two ways:
-
-    1. Via kwargs directly (when caller uses celery.send_task with extra kwargs):
-           {"speaker": "aidar", "sample_rate": 24000}
-
-    2. As JSON prefix in prompt (for callers that can only send prompt string):
-           prompt = '{"speaker":"aidar","sample_rate":24000}\\nТекст для озвучки'
-       The JSON object on the first line is stripped and used as params.
+    Параметры генератора передаются двумя способами:
+    1. Через kwargs: {"speaker": "aidar", "sample_rate": 24000}
+    2. JSON-префиксом в prompt:
+       '{"speaker":"aidar","sample_rate":24000}\nТекст для озвучки'
     """
-    if request_type != "audio":
+    task_id = self.request.id
+    logger.info("[%s] Получена задача: request_type=%s model=%s prompt_len=%d",
+                task_id, request_type, model_name, len(prompt))
+
+    if request_type != "voice":
+        logger.error("[%s] Неподдерживаемый request_type: %s", task_id, request_type)
         raise ValueError(
-            f"VoiceGen only handles request_type='audio', got '{request_type}'"
+            f"VoiceGenWorker handles only request_type='voice', got '{request_type}'"
         )
 
-    # --- Extract params from JSON prefix in prompt (optional) ---
+    # --- Извлекаем JSON-параметры из префикса prompt ---
     text = prompt
     inline_params: dict = {}
     first_line, _, rest = prompt.partition("\n")
@@ -43,20 +47,30 @@ def generate(
         try:
             inline_params = json.loads(first_line.strip())
             text = rest.strip()
+            logger.debug("[%s] JSON-параметры из prompt: %s", task_id, inline_params)
         except json.JSONDecodeError:
-            pass  # treat the whole prompt as plain text
+            logger.warning("[%s] Не удалось распарсить JSON-префикс, трактую как обычный текст", task_id)
 
-    # kwargs take priority over inline JSON
     raw_params = {**inline_params, **kwargs}
-
     generator_name = model_name or settings.default_generator
+    logger.info("[%s] Генератор: %s | параметры: %s", task_id, generator_name, raw_params)
 
     os.makedirs(settings.temp_dir, exist_ok=True)
 
-    generator = get_generator(generator_name)
-    file_path = generator.generate(text=text, params=raw_params)
+    t_start = time.monotonic()
+    try:
+        generator = get_generator(generator_name)
+        file_path = generator.generate(text=text, params=raw_params)
+    except Exception as exc:
+        elapsed = time.monotonic() - t_start
+        logger.exception("[%s] Ошибка генерации (%.2fs): %s", task_id, elapsed, exc)
+        raise
+
+    elapsed = time.monotonic() - t_start
+    logger.info("[%s] Готово за %.2fs → %s", task_id, elapsed, file_path)
 
     if callback_url:
+        logger.debug("[%s] Отправка callback на %s", task_id, callback_url)
         _send_callback(callback_url, file_path)
 
     return file_path
@@ -66,5 +80,6 @@ def _send_callback(url: str, file_path: str) -> None:
     try:
         import httpx
         httpx.post(url, json={"result": file_path}, timeout=10)
-    except Exception:
-        pass
+        logger.debug("Сallback отправлен: %s", url)
+    except Exception as exc:
+        logger.warning("Ошибка отправки callback на %s: %s", url, exc)

@@ -1,9 +1,5 @@
 version: "3.9"
 
-# Connect to the same Redis as GeminiBApiServer.
-# If running on the same machine, use 'network_mode: host' or
-# share an external network with GeminiBApiServer.
-
 services:
   voicegen:
     build: .
@@ -11,13 +7,3 @@ services:
     volumes:
       - ./temp:/app/temp
     restart: unless-stopped
-    environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-    # Uncomment to connect to external network shared with GeminiBApiServer:
-    # networks:
-    #   - gemini_net
-
-# networks:
-#   gemini_net:
-#     external: true
