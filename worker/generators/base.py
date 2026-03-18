@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
+from venv import logger
 
 
 class ParamSpec:
@@ -51,7 +52,7 @@ class BaseTTSGenerator(ABC):
     PARAMS: dict[str, ParamSpec] = {}
 
     def resolve_params(self, raw: dict) -> dict:
-        print(f"RAW PARAMS: {raw}")
+        logger.debug(f"RAW PARAMS: {raw}")
         """
         Merge incoming raw dict with declared defaults, cast to correct types.
         Unknown keys are passed through as-is (for forward compatibility).

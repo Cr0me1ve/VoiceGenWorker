@@ -48,7 +48,6 @@ class SileroGenerator(BaseTTSGenerator):
 
     def generate(self, text: str, params: dict) -> str:
         p = self.resolve_params(params)
-        print(f"RESOLVED PARAMS: {p}")
         logger.debug("Silero generate: speaker=%s sample_rate=%s language=%s model=%s text_len=%d",
                      p['speaker'], p['sample_rate'], p['language'], p['speaker_model'], len(text))
 
