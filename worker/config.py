@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Storage
     temp_dir: str = "temp"
+    file_ttl_minutes: int = 15
 
     # Netbird — этот воркер раздаёт файлы по своему Netbird IP
     netbird_ip: str = "127.0.0.1"

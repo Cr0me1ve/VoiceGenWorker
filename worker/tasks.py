@@ -87,6 +87,31 @@ def generate(
     return result
 
 
+@celery.task(name="voice_worker.tasks.cleanup_old_files")
+def cleanup_old_files():
+    """Удаляет mp3 файлы из temp/, которые старше file_ttl_minutes."""
+    ttl_seconds = settings.file_ttl_minutes * 60
+    temp_dir = settings.temp_dir
+    if not os.path.isdir(temp_dir):
+        return
+
+    now = time.time()
+    removed = 0
+    for filename in os.listdir(temp_dir):
+        if not filename.lower().endswith(".mp3"):
+            continue
+        filepath = os.path.join(temp_dir, filename)
+        try:
+            if now - os.path.getmtime(filepath) > ttl_seconds:
+                os.remove(filepath)
+                removed += 1
+        except OSError as exc:
+            logger.warning("Не удалось удалить %s: %s", filepath, exc)
+
+    if removed:
+        logger.info("Очистка: удалено %d файлов старше %d мин", removed, settings.file_ttl_minutes)
+
+
 def _send_callback(url: str, result: dict) -> None:
     try:
         import httpx

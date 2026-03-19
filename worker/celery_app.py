@@ -28,4 +28,10 @@ celery.conf.update(
         Queue("voice"),
     ),
     task_default_queue="voice",
+    beat_schedule={
+        "cleanup-old-mp3": {
+            "task": "voice_worker.tasks.cleanup_old_files",
+            "schedule": 300.0,  # проверка каждые 5 минут
+        },
+    },
 )
