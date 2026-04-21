@@ -1,9 +1,11 @@
 from worker.generators.base import BaseTTSGenerator, ParamSpec
 from worker.generators.silero import SileroGenerator
+from worker.generators.omnivoice import OmniVoiceGenerator
 
 # Registry: model_name -> generator class
 _REGISTRY: dict[str, type[BaseTTSGenerator]] = {
     "silero": SileroGenerator,
+    "omnivoice": OmniVoiceGenerator,
 }
 
 

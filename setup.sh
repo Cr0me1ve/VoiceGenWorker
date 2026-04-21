@@ -88,7 +88,7 @@ if [ "$ENV_SKIP" -eq 0 ]; then
     read -rp "  REDIS_PASSWORD: " REDIS_PASSWORD
     echo
 
-    read -rp "  DEFAULT_GENERATOR [silero]: " DEFAULT_GENERATOR
+    read -rp "  DEFAULT_GENERATOR (silero|omnivoice) [silero]: " DEFAULT_GENERATOR
     DEFAULT_GENERATOR="${DEFAULT_GENERATOR:-silero}"
 
     read -rp "  DEFAULT_SPEAKER [eugene]: " DEFAULT_SPEAKER

@@ -150,6 +150,56 @@ docker compose up -d --build
 
 Модели кэшируются в памяти — повторные запросы с тем же языком/вариантом не перезагружают модель.
 
+## Генератор OmniVoice
+
+Zero-shot multilingual TTS от k2-fsa ([huggingface.co/k2-fsa/OmniVoice](https://huggingface.co/k2-fsa/OmniVoice)).
+Поддерживает 600+ языков, клонирование голоса из короткого аудио, voice design по описанию и non-verbal символы (`[laughter]`, `[sigh]` и т.д.).
+
+### Параметры
+
+| Параметр | По умолчанию | Описание |
+|---|---|---|
+| `ref_audio` | — | Путь к файлу или **URL** референс-аудио (3–10 сек) для клонирования голоса |
+| `ref_text` | — | Транскрипция `ref_audio` |
+| `instruct` | — | Описание голоса: `"female, low pitch, british accent"` |
+| `num_step` | `32` | Шаги диффузии (16 — быстрее, 32 — качественнее) |
+| `speed` | `1.0` | Множитель скорости (>1.0 быстрее) |
+| `duration` | — | Фиксированная длительность в секундах |
+| `language_id` | — | Идентификатор языка |
+| `seed` | — | Seed для воспроизводимости |
+| `dtype` | `float16` | `float16` \| `float32` \| `bfloat16` |
+| `device` | `auto` | `auto` \| `cuda:0` \| `cpu` \| `mps` |
+| `model_id` | `k2-fsa/OmniVoice` | HF repo id модели |
+
+### Режимы работы
+
+**Voice cloning** — передать `ref_audio` (URL или путь) и `ref_text`:
+```json
+{
+    "prompt": "Hello, this is a cloned voice.",
+    "request_type": "voice",
+    "model_name": "omnivoice",
+    "kwargs": {
+        "ref_audio": "http://100.95.0.1:8888/sample.wav",
+        "ref_text": "Original transcription."
+    }
+}
+```
+
+**Voice design** — описать голос через `instruct`:
+```json
+{
+    "prompt": "Привет!",
+    "request_type": "voice",
+    "model_name": "omnivoice",
+    "kwargs": {"instruct": "female, young, high pitch"}
+}
+```
+
+**Auto voice** — без `ref_audio` и `instruct`, голос выбирается автоматически.
+
+> ⚠️ Для приемлемой скорости нужен GPU. В базовом `Dockerfile` ставится PyTorch CPU — для CUDA замени строку `pip install torch ...` на версию с `--index-url https://download.pytorch.org/whl/cu128` и пробрось GPU в `docker-compose.yml` (`deploy.resources.reservations.devices`).
+
 ## Структура проекта
 
 ```
