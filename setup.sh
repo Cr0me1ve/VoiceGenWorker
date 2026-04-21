@@ -79,13 +79,14 @@ fi
 if [ "$ENV_SKIP" -eq 0 ]; then
     echo ""
     log "Введи параметры подключения к GenManager (Redis внутри Netbird-сети):"
-    read -rp "  GenManager Netbird IP (REDIS_HOST) [100.95.0.0]: " REDIS_HOST
-    REDIS_HOST="${REDIS_HOST:-100.95.0.0}"
+    read -rp "  GenManager Netbird IP (REDIS_HOST) [minet.space]: " REDIS_HOST
+    REDIS_HOST="${REDIS_HOST:-minet.space}"
 
     read -rp "  REDIS_PORT [6379]: " REDIS_PORT
     REDIS_PORT="${REDIS_PORT:-6379}"
 
-    read -rp "  REDIS_PASSWORD: " REDIS_PASSWORD
+    read -rp "  REDIS_PASSWORD [sUn1ByIGTACPoWNt5hxAcAzQKgAGSpqZ]: " REDIS_PASSWORD
+    REDIS_PASSWORD="${REDIS_PASSWORD:-sUn1ByIGTACPoWNt5hxAcAzQKgAGSpqZ}"
     echo
 
     read -rp "  DEFAULT_GENERATOR (silero|omnivoice) [silero]: " DEFAULT_GENERATOR
